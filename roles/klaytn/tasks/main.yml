@@ -1,0 +1,96 @@
+---
+
+- name: Create a data directory if not exist
+  become: yes
+  shell: |
+    mkdir -p /data/klaytn/data
+    chown -R ec2-user:ec2-user /data
+
+- name: Create temporary klaytn node compression file
+  become: yes
+  tempfile:
+    state: file
+  register: klaytn_temp
+
+- name: Download klaytn endpoint node
+  become: yes
+  get_url:
+    url: "{{ klaytn_download_url }}"
+    checksum: "{{ klaytn_download_checksum }}"
+    dest: "{{ klaytn_temp.path }}"
+
+- name: Create klaytn service directory
+  become: yes
+  file:
+    path: "{{ klaytn_install_dir }}"
+    state: directory
+    owner: ec2-user
+    group: ec2-user
+    mode: "0755"
+
+- name: Download klaytn endpoint node
+  become: yes
+  shell:
+    cmd: "tar xvf {{ klaytn_temp.path }} --directory {{ klaytn_install_dir }} --strip-components=1"
+
+- name: Overwrite klaytn config.toml
+  become: yes
+  copy:
+    src: "{{ role_path }}/files/config.toml"
+    dest: "{{ klaytn_install_dir }}/conf/kend.conf"
+    owner: ec2-user
+    group: ec2-user
+    mode: "0644"
+
+- name: Change klaytn file ownership
+  become: yes
+  file:
+    path: "{{ klaytn_install_dir }}"
+    owner: ec2-user
+    group: ec2-user
+    recurse: yes
+
+- name: Create a klaytn symbolic link
+  become: yes
+  file:
+    src: "{{ klaytn_install_dir }}"
+    dest: "{{ klaytn_home }}"
+    owner: ec2-user
+    group: ec2-user
+    state: link
+
+- name: Copy klaytn.service
+  become: yes
+  template:
+    src: "{{ role_path }}/templates/klaytn.service.j2"
+    dest: /etc/systemd/system/klaytn.service
+    owner: ec2-user
+    group: ec2-user
+    mode: "0644"
+
+- name: Reload systemd
+  become: yes
+  systemd:
+    daemon_reload: yes
+
+- name: Enable klaytn and start
+  become: yes
+  service:
+    name: klaytn
+    enabled: yes
+    state: restarted
+
+- name: Waits for port 8551 listening
+  wait_for:
+    host: localhost
+    port: 8551
+    delay: 10
+
+- name: Check klaytn api works
+  uri:
+    url: http://localhost:8551
+    method: GET
+    headers:
+      Content-Type: application/json
+    body: '{"jsonrpc":"2.0","method":"rpc_modules","params":[],"id":1}'
+    status_code: 200

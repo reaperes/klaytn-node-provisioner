@@ -1,0 +1,14 @@
+[Unit]
+Description=Klaytn endpoint node
+Requires=network.target
+After=rsyslog.target network.target
+
+[Service]
+Type=forking
+User=ec2-user
+ExecStartPre=-{{ klaytn_home }}/bin/kend stop
+ExecStart={{ klaytn_home }}/bin/kend start
+ExecStop={{ klaytn_home }}/bin/kend stop
+
+[Install]
+WantedBy=default.target

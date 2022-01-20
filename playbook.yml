@@ -1,0 +1,21 @@
+---
+
+- name: Provisioning ec2 instance
+  hosts: localhost
+
+  roles:
+  - ec2-provisioning
+
+- name: Install klay and run
+  hosts: "{{ groups['provisioned_ec2_instances'] }}"
+
+  pre_tasks:
+  - name: Wait for device mount
+    shell: "lsblk /dev/sdf --noheadings | cut -d ' ' -f 10 | grep /data &> /dev/null"
+    register: lsblk_result
+    until: lsblk_result is not failed
+    retries: 12
+    delay: 5
+
+  roles:
+  - klaytn

@@ -1,0 +1,7 @@
+#!/bin/sh
+
+mkdir -p ${mountDir}
+
+mkfs -t xfs ${deviceName}
+
+mount ${deviceName} ${mountDir}

@@ -1,0 +1,38 @@
+---
+
+- name: Set tfstate directory
+  ansible.builtin.shell: echo $(date +'%y%m%d-%H%M%S')
+  register: tfstate_path
+
+- name: Launch ec2 instance
+  community.general.terraform:
+    project_path: "{{ role_path }}/files/terraform"
+    state: present
+    workspace: "{{ tfstate_path.stdout if ignore_tfstate != 'true' else 'default' }}"
+    variables:
+      instance-name: "{{ instance_name }}"
+      instance-type: "{{ instance_type }}"
+      instance-ami: "{{ instance_ami }}"
+      instance-key-pair: "{{ instance_key_pair }}"
+      instance-subnet-id: "{{ instance_subnet_id }}"
+      vpc-security-group-ids: "{{ vpc_security_group_ids | to_json }}"
+      device-name: "{{ external_ebs_device_name }}"
+      device-volume: "{{ external_ebs_device_volume }}"
+      device-mount-dir: "{{ external_ebs_device_mount_dir }}"
+  register: terraform_out
+
+- name: Print terraform_out
+  debug:
+    msg: "{{ terraform_out }}"
+
+- name: Wait for launching
+  wait_for:
+    host: "{{ terraform_out.outputs.publicIp.value }}"
+    port: 22
+    delay: 0
+    timeout: 180
+
+- name: Make group
+  add_host:
+    groups: provisioned_ec2_instances
+    name: "{{ terraform_out.outputs.publicIp.value }}"

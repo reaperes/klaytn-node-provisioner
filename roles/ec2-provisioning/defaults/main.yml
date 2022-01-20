@@ -1,0 +1,5 @@
+---
+ignore_tfstate: false
+external_ebs_device_name: /dev/sdf
+external_ebs_device_volume: 5000  # GB
+external_ebs_device_mount_dir: /data
